@@ -1,159 +1,63 @@
 # Blueprint metadata
 blueprint:
-  name: Controller - Livarno Lux Wireless 4-Button Remote
-  description: |
-    # Controller - Livarno Lux Wireless 4-Button Remote
-
-    Controller automation for executing any kind of action triggered by the provided Livarno Lux Wireless 4-Button Remote. Allows to optionally loop an action on a button long press.
-    Supports deCONZ
-
+  name: deCONZ - Livarno Lux 4-Button Remote
+  description: deCONZ automation for executing any kind of action triggered by the provided Livarno Lux Wireless 4-Button Remote.
   source_url: https://github.com/Ediste/ha-blueprints/livarno-lux-dimming-remote.yml
   domain: automation
   input:
-    controller_device:
-      name: deCONZ Controller Device
-      description: The controller device to use for the automation. Choose a value only if the remote is integrated with deCONZ.
-      default: ""
+    remote:
+      name: Remote
+      description: The device to use for the automation.
       selector:
         device:
+          integration: deconz
+          manufacturer: LIDL Livarno Lux
 
-    # inputs for custom actions
     action_button_one:
-      name: (Optional) on button press
-      description: Action to run on on button press.
+      name: (Optional) first button press
+      description: Action to run on first button press.
       default: []
       selector:
-        action:
+        action: {}
 
     action_button_two:
-      name: (Optional) Center button short press
-      description: Action to run on short center button press.
+      name: (Optional) second button press
+      description: Action to run on second button press.
       default: []
       selector:
-        action:
+        action: {}
 
     action_button_three:
-      name: (Optional) Up button short press
-      description: Action to run on short up button press.
+      name: (Optional) third button press
+      description: Action to run on third button press.
       default: []
       selector:
-        action:
+        action: {}
 
     action_button_four:
-      name: (Optional) Down button short press
-      description: Action to run on short down button press.
+      name: (Optional) fourth button press
+      description: Action to run on fourth button press.
       default: []
       selector:
-        action:
+        action: {}
 
-    helper_debounce_delay:
-      name: (Optional) Helper - Debounce delay
-      description:
-        Delay used for debouncing RAW controller events, by default set to 0. A value of 0 disables the debouncing feature. Increase this value if you notice custom actions or linked Hooks running multiple times when interacting with the device. When the controller needs to be debounced,
-        usually a value of 100 is enough to remove all duplicate events.
-      default: 0
-      selector:
-        number:
-          min: 0
-          max: 1000
-          unit_of_measurement: milliseconds
-          mode: box
-          step: 10
-
-# Automation schema
-variables:
-  # convert input tags to variables, to be used in templates
-
-  helper_debounce_delay: !input helper_debounce_delay
-  # integration id used to select items in the action mapping
-  integration_id:
-    "{{ integration | lower }}"
-
-    # mapping between actions for buttons based on configured integration
-  # no need to perform this task at automation runtime
-  button_one: '{{ ["4002"] }}'
-  button_two: '{{ ["1002"] }}'
-  button_three: '{{ ["2002"] }}'
-  button_four:
-    '{{ ["3002"] }}'
-
-    # integrations which need to store the previous press event to determine which button was released
-    # build data to send within a controller event
-  controller_device: !input controller_device
-  controller_id: "{{controller_device}}"
 mode: restart
 max_exceeded: silent
 trigger:
   # trigger for other integrations
   - platform: event
-    event_type:
-      - deconz_event
+    event_type: deconz_event
     event_data:
-      device_id: !input controller_device
-condition:
-  - condition: and
-    conditions:
-      # check that the button event is not empty
-      - >-
-        {%- set trigger_action -%}
-        {{ trigger.event.data.event }}
-        {%- endset -%}
-        {{ trigger_action not in ["","None"] }}
+      device_id: !input remote
 action:
-  # debouncing - when automation is triggered multiple times, the last automation run is the one which completes execution, due to mode restart
-  # therefore previous runs must wait for the debounce delay before executing any other action
-  # if the delay expires and the automation is still running it means it's the last run and execution can continue
-  - delay:
-      milliseconds: !input helper_debounce_delay
-  # extract button event from the trigger
-  # provide a single string value to check against
   - variables:
-      trigger_action: >-
-        {{ trigger.event.data.event }}
-  # choose the sequence to run based on the received button event
+      event: "{{ trigger.event.data.event }}"
   - choose:
-      - conditions: "{{ trigger_action | string in button_one }}"
-        sequence:
-          # fire the event
-          - event: ahb_controller_event
-            event_data:
-              controller: "{{ controller_id }}"
-              action: button_one
-          # run the custom action
-          - choose:
-              - conditions: []
-                sequence: !input action_button_one
-
-      - conditions: "{{ trigger_action | string in button_two }}"
-        sequence:
-          - event: ahb_controller_event
-            event_data:
-              controller: "{{ controller_id }}"
-              action: button_two
-          # run the custom action
-          - choose:
-              - conditions: []
-                sequence: !input action_button_two
-
-      - conditions: "{{ trigger_action | string in button_three }}"
-        sequence:
-          - event: ahb_controller_event
-            event_data:
-              controller: "{{ controller_id }}"
-              action: button_three
-          # run the custom action
-          - choose:
-              - conditions: []
-                sequence: !input action_button_three
-
-      - conditions: "{{ trigger_action | string in button_four }}"
-        sequence:
-          # fire the event
-          - event: ahb_controller_event
-            event_data:
-              controller: "{{ controller_id }}"
-              action: button_four
-          # run the custom action
-          - choose:
-              - conditions: []
-                sequence: !input action_button_four
+      - conditions: "{{ event == 4002 }}"
+        sequence: !input action_button_one
+      - conditions: "{{ event == 1002 }}"
+        sequence: !input action_button_two
+      - conditions: "{{ event == 2002 }}"
+        sequence: !input action_button_three
+      - conditions: "{{ event == 3002 }}"
+        sequence: !input action_button_four
